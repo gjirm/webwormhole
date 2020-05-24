@@ -34,6 +34,17 @@ func Decode(words []string) (bytes []byte, parity []byte) {
 	return bytes, parity
 }
 
+// Match returns the first word that shares the prefix p, or an empty
+// string if none match.
+func Match(p string) string {
+	for _, w := range pgpWords {
+		if strings.HasPrefix(w, p) {
+			return w
+		}
+	}
+	return ""
+}
+
 func index(word string) (i int, ok bool) {
 	for i := range pgpWords {
 		if strings.EqualFold(word, pgpWords[i]) {

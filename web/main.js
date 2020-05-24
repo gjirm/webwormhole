@@ -1,4 +1,3 @@
-import { newwormhole, dial } from './dial.js'
 import { autocomplete } from './wordlist.js'
 
 let receiving
@@ -212,63 +211,16 @@ const receive = e => {
   }
 }
 
-// initPeerConnection initialises a PeerConnection object.
-const initPeerConnection = (iceServers) => {
-  // TODO fix the case in json object in pion/webrtc
-  let normalisedICEServers = []
-  for (let i=0; i<iceServers.length; i++) {
-    normalisedICEServers.push({
-      urls: iceServers[i].URLs,
-      username: iceServers[i].Username,
-      credential: iceServers[i].Credential
-    })
-  }
-  const pc = new RTCPeerConnection({
-    iceServers: normalisedICEServers
-  })
-  pc.onconnectionstatechange = e => {
-    switch (pc.connectionState) {
-      case 'connected':
-      // Handled in datachannel.onopen.
-        console.log('webrtc connected')
-        break
-      case 'failed':
-        disconnected()
-        console.log('webrtc connection failed connectionState:', pc.connectionState, 'iceConnectionState', pc.iceConnectionState)
-        document.getElementById('info').innerHTML = 'NETWORK ERROR TRY AGAIN'
-        break
-      case 'disconnected':
-      case 'closed':
-        disconnected()
-        console.log('webrtc connection closed')
-        document.getElementById('info').innerHTML = 'DISCONNECTED'
-        pc.onconnectionstatechange = null
-        break
-    }
-  }
-  datachannel = pc.createDataChannel('data', { negotiated: true, id: 0 })
-  datachannel.onopen = connected
-  datachannel.onmessage = receive
-  datachannel.binaryType = 'arraybuffer'
-  datachannel.onclose = e => {
-    disconnected()
-    console.log('datachannel closed')
-    document.getElementById('info').innerHTML = 'DISCONNECTED'
-  }
-  datachannel.onerror = e => {
-    disconnected()
-    console.log('datachannel error:', e.error)
-    document.getElementById('info').innerHTML = 'NETWORK ERROR TRY AGAIN'
-  }
-  return pc
-}
-
 const connect = async e => {
   try {
+    dialling()
+    let pass, pc
     if (document.getElementById('magiccode').value === '') {
-      dialling()
       document.getElementById('info').innerHTML = 'WAITING FOR THE OTHER SIDE - SHARE CODE OR URL'
-      const [code, finish] = await newwormhole(signalserver.href, initPeerConnection)
+      let slot
+      [slot, pc] = await webwormhole.new(location.href)
+      pass = crypto.getRandomValues(new Uint8Array(2))
+      const code = slot + '-' + webwormhole.encode(pass)
       document.getElementById('magiccode').value = code
       codechange()
       location.hash = code
@@ -279,22 +231,63 @@ const connect = async e => {
       } else {
         document.getElementById('qr').src = URL.createObjectURL(new Blob([qr]))
       }
-      await finish
     } else {
-      dialling()
       document.getElementById('info').innerHTML = 'CONNECTING'
-      await dial(signalserver.href, document.getElementById('magiccode').value, initPeerConnection)
+      const [slot, ...passparts] = document.getElementById('magiccode').value.split('-')
+      pass = webwormhole.decode(passparts.join("-"))
+      if (pass === null) {
+        throw "could not decode word"
+      }
+      pc = await webwormhole.join(location.href, slot)
     }
+    pc.onconnectionstatechange = e => {
+      switch (pc.connectionState) {
+        case 'connected':
+          // Handled in datachannel.onopen.
+          console.log('webrtc connected')
+          break
+        case 'failed':
+          disconnected()
+          console.log('webrtc connection failed connectionState:', pc.connectionState)
+          document.getElementById('info').innerHTML = 'NETWORK ERROR'
+          pc.onconnectionstatechange = null
+          break
+        case 'disconnected':
+        case 'closed':
+          disconnected()
+          console.log('webrtc connection closed')
+          document.getElementById('info').innerHTML = 'DISCONNECTED'
+          pc.onconnectionstatechange = null
+          break
+      }
+    }
+    datachannel = pc.createDataChannel('data', { negotiated: true, id: 0 })
+    datachannel.onopen = connected
+    datachannel.onmessage = receive
+    datachannel.binaryType = 'arraybuffer'
+    datachannel.onclose = e => {
+      disconnected()
+      console.log('datachannel closed')
+      document.getElementById('info').innerHTML = 'DISCONNECTED'
+    }
+    datachannel.onerror = e => {
+      disconnected()
+      console.log('datachannel error:', e.error)
+      document.getElementById('info').innerHTML = 'NETWORK ERROR'
+    }
+    await webwormhole.dial(pass, pc)
   } catch (err) {
     disconnected()
     if (err === 'bad key') {
-      document.getElementById('info').innerHTML = 'BAD KEY TRY AGAIN'
+      document.getElementById('info').innerHTML = 'BAD KEY'
     } else if (err === 'no such slot') {
       document.getElementById('info').innerHTML = 'NO SUCH SLOT'
     } else if (err === 'timed out') {
-      document.getElementById('info').innerHTML = 'CODE TIMED OUT GENERATE ANOTHER'
+      document.getElementById('info').innerHTML = 'CODE TIMED OUT'
+    } else if (err === 'could not decode word') {
+      document.getElementById('info').innerHTML = 'BAD CODE'
     } else {
-      document.getElementById('info').innerHTML = 'COULD NOT CONNECT TRY AGAIN'
+      document.getElementById('info').innerHTML = 'COULD NOT CONNECT'
       console.log(err)
     }
   }

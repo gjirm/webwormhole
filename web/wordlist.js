@@ -1,23 +1,3 @@
-export const encode = bytes => {
-  const words = []
-  for (let i = 0; i < bytes.length; i++) {
-    words.push(wordlist[(bytes[i] * 2) + (i % 2)])
-  }
-  return words.join('-')
-}
-
-export const decode = words => {
-  const bytes = new Uint8Array(words.length)
-  for (let i = 0; i < words.length; i++) {
-    const j = wordlist.indexOf(words[i])
-    if (j === -1) {
-      throw new Error("couldn't decode word")
-    }
-    bytes[i] = Math.floor(j/2)
-  }
-  return bytes
-}
-
 var currentHint = "";
 
 export const autocomplete = e => {
