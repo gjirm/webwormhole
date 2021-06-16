@@ -7,28 +7,6 @@ let serviceworker;
 let signalserver = new URL(location.href);
 const hacks = {};
 
-// Background colour to chose from based on the derived key. I.e., both parties
-// should see the same colour.
-// TODO move to css and make this also work for dark mode.
-const fingerprintcolors = [
-	// bright green
-	"#c1ffab",
-	// brown
-	"#c3c0a7",
-	// gold
-	"#b7ae5e",
-	// teal
-	"#6cc3c5",
-	// grey
-	"#cccccc",
-	// blue
-	"#88b6fb",
-	// lime
-	"#cdff33",
-	// purple
-	"#e796ea",
-];
-
 function pick() {
 	const files = document.getElementById("filepicker").files;
 	for (let i = 0; i < files.length; i++) {
@@ -49,15 +27,13 @@ function drop(e) {
 
 	// A shortcut to save users a click. If we're disconnected and they drag
 	// a file in treat it as a click on the new/join wormhole button.
-	// TODO track connection state like a decent human being instead of using
-	// the filepicker state...
 	if (document.getElementById("filepicker").disabled) {
 		connect();
 	}
 }
 
-function paste(e) {
-	console.log(e.clipboardData.files)
+// Handle a paste event from cmd-v/ctl-v.
+function pasteEvent(e) {
 	const files = e.clipboardData.files;
 	const t = e.clipboardData.getData("text")
 	if (files.length !== 0) {
@@ -66,6 +42,23 @@ function paste(e) {
 		}
 	} else if (t.length !== 0) {
 		sendtext(t);
+	}
+}
+
+// Read clipboard content using Clipboard API.
+async function pasteClipboard(e) {
+	if (hacks.noclipboardapi) return
+
+	let items = await navigator.clipboard.read();
+	// TODO toast a message if permission wasn't given.
+	for (let i = 0; i < items.length; i++) {
+		if (items[i].types.includes("image/png")) {
+			const blob = await items[i].getType(image/png);
+			sendfile(blob);
+		} else  if (items[i].types.includes("text/plain")) {
+			const blob = await items[i].getType("text/plain");
+			sendtext(await blob.text());
+		}
 	}
 }
 
@@ -265,7 +258,6 @@ function receive(e) {
 		receiving.li.appendChild(receiving.progress);
 		document.getElementById("transfers").appendChild(receiving.li);
 
-
 		if (serviceworker) {
 			serviceworker.postMessage({
 				id: receiving.id,
@@ -319,139 +311,152 @@ function receive(e) {
 	}
 }
 
-function setuppeercon(pc) {
-	pc.onconnectionstatechange = () => {
-		switch (pc.connectionState) {
-			case "connected": {
-				// Handled in datachannel.onopen.
-				console.log("webrtc connected");
-				break;
-			}
-			case "failed": {
-				disconnected();
-				console.log(
-					"webrtc connection failed connectionState:",
-					pc.connectionState,
-					"iceConnectionState",
-					pc.iceConnectionState,
-				);
-				document.getElementById("info").innerText = "NETWORK ERROR";
-				break;
-			}
-			case "disconnected":
-			case "closed": {
-				disconnected();
-				console.log("webrtc connection closed");
-				document.getElementById("info").innerText = "DISCONNECTED";
-				pc.onconnectionstatechange = null;
-				break;
-			}
-		}
-	};
-	const dc = pc.createDataChannel("data", {negotiated: true, id: 0});
-	dc.onopen = () => {
-		connected();
-		datachannel = dc;
-		send(); // work through the send queue if it has anything
-	};
-	dc.onmessage = receive;
-	dc.binaryType = "arraybuffer";
-	dc.onclose = () => {
-		disconnected();
-		console.log("datachannel closed");
-		document.getElementById("info").innerText = "DISCONNECTED";
-	};
-	dc.onerror = (e) => {
-		disconnected();
-		console.log("datachannel error:", e.error);
-		document.getElementById("info").innerText = "NETWORK ERROR";
-	};
-	return pc;
-}
-
 async function connect() {
 	try {
 		dialling();
-		const w = new Wormhole(
-			signalserver.href,
-			document.getElementById("magiccode").value,
-		);
+		const code = document.getElementById("magiccode").value;
+		const w = new Wormhole(signalserver.href, code);
 		const signal = await w.signal();
-		setuppeercon(signal.pc);
 
-		if (document.getElementById("magiccode").value === "") {
-			document.getElementById("info").innerHTML = "WAITING FOR THE OTHER SIDE<br>ENTER WORDS / SHARE URL / SCAN QR CODE";
+		// Use PeerConnection.iceConnectionState since Firefox does not
+		// implement PeerConnection.connectionState
+		signal.pc.oniceconnectionstatechange = () => {
+			switch (signal.pc.iceConnectionState) {
+				case "connected": {
+					// Handled in datachannel.onopen.
+					w.close();
+					break;
+				}
+				case "disconnected":
+				case "closed": {
+					disconnected("webrtc connection closed");
+					signal.pc.onconnectionstatechange = null;
+					break;
+				}
+				case "failed": {
+					disconnected("webrtc connection failed");
+					console.log(
+						"webrtc connection failed connectionState:",
+						signal.pc.connectionState,
+						"iceConnectionState",
+						signal.pc.iceConnectionState,
+					);
+					w.close();
+					break;
+				}
+			}
+		};
+
+		const dc = signal.pc.createDataChannel("data", {negotiated: true, id: 0});
+		dc.onopen = () => {
+			connected();
+			datachannel = dc;
+			// Send anything we have in the send queue.
+			send();
+		};
+		dc.onmessage = receive;
+		dc.binaryType = "arraybuffer";
+		dc.onclose = () => { disconnected("datachannel closed"); };
+		dc.onerror = e => { disconnected("datachannel error:", e.error); };
+
+		if (code === "") {
+			waiting();
 			codechange();
 			document.getElementById("magiccode").value = signal.code;
 			location.hash = signal.code;
 			signalserver.hash = signal.code;
 			updateqr(signalserver.href);
-		} else {
-			document.getElementById("info").innerText = "CONNECTING";
 		}
-
 		const fingerprint = await w.finish();
+
+		// To make it more likely to spot the 1 in 2^16 chance of a successful
+		// MITM password guess, we can compare a fingerprint derived from the PAKE
+		// key. The 7 words visible on the tooltip of the input box should match on
+		// both side.
+		// We also use the first 3 bits of it to choose the background colour, so
+		// that should match on both sides as well.
 		const encodedfp = webwormhole.encode(0, fingerprint.subarray(1));
 		document.getElementById("magiccode").title = encodedfp.substring(
 			encodedfp.indexOf("-") + 1,
 		);
-		document.body.style.backgroundColor = fingerprintcolors[fingerprint[0] %
-		fingerprintcolors.length];
+		document.body.style.backgroundColor = `var(--palette-${fingerprint[0]%8})`;
 	} catch (err) {
-		disconnected();
-		if (err === "bad key") {
-			document.getElementById("info").innerText = "BAD KEY";
-		} else if (err === "bad code") {
-			document.getElementById("info").innerText = "INVALID CODE";
-		} else if (err === "no such slot") {
-			document.getElementById("info").innerText = "NO SUCH SLOT";
-		} else if (err === "timed out") {
-			document.getElementById("info").innerText = "CODE TIMED OUT GENERATE ANOTHER";
-		} else if (err === "could not connect to signalling server") {
-			document.getElementById("info").innerText = "COULD NOT CONNECT TO SIGNALLING SERVER - ENSURE IT IS REACHABLE AND IS RUNNING A COMPATIBLE VERSION";
-		} else {
-			document.getElementById("info").innerText = "COULD NOT CONNECT";
-			console.log(err);
-		}
+		disconnected(err);
 	}
 }
 
+function waiting() {
+	document.getElementById("info").innerText = "Waiting for the other side to join by typing the wormhole phrase, opening this URL, or scanning the QR code.";
+}
+
 function dialling() {
+	document.getElementById("info").innerText = "Connecting...";
+
 	document.body.classList.add("dialling");
 	document.body.classList.remove("connected");
 	document.body.classList.remove("disconnected");
 
 	document.getElementById("filepicker").disabled = false;
+	document.getElementById("clipboard").disabled = false || hacks.noclipboardapi;
 	document.getElementById("dial").disabled = true;
 	document.getElementById("magiccode").readOnly = true;
-	document.body.addEventListener("paste", paste);
+	document.body.addEventListener("paste", pasteEvent);
 }
 
 function connected() {
+	document.getElementById("info").innerText = "";
+
 	document.body.classList.remove("dialling");
 	document.body.classList.add("connected");
 	document.body.classList.remove("disconnected");
 
-	document.getElementById("info").innerText = "OR DROP OR PASTE TO SEND";
-
 	location.hash = "";
 }
 
-function disconnected() {
+function disconnected(reason) {
 	datachannel = null;
 	sendqueue = [];
 	document.body.style.backgroundColor = "";
+
+	// TODO better error types or at least hoist the strings to consts.
+	if (reason === "bad key") {
+		document.getElementById("info").innerText = "Wrong wormhole phrase.";
+	} else if (reason === "bad code") {
+		document.getElementById("info").innerText = "Not a valid wormhole phrase.";
+	} else if (reason === "no such slot") {
+		document.getElementById("info").innerText = "No such slot. The wormhole might have expired.";
+	} else if (reason === "timed out") {
+		document.getElementById("info").innerText = "Wormhole expired.";
+	} else if (reason === "could not connect to signalling server") {
+		document.getElementById("info").innerText = "Could not reach the signalling server. Refresh page and try again.";
+
+	} else if (reason === "webrtc connection closed") {
+		document.getElementById("info").innerText = "Disconnected.";
+	} else if (reason === "webrtc connection failed") {
+		document.getElementById("info").innerText = "Network error.";
+
+	} else if (reason === "datachannel closed") {
+		document.getElementById("info").innerText = "Disconnected.";
+	} else if (reason === "webrtc connection failed") {
+		document.getElementById("info").innerText = "Network error.";
+
+	} else {
+		document.getElementById("info").innerText = "Could not connect.";
+		console.log(reason);
+	}
 
 	document.body.classList.remove("dialling");
 	document.body.classList.remove("connected");
 	document.body.classList.add("disconnected");
 
+	document.getElementById("filepicker").disabled = true;
+	document.getElementById("clipboard").disabled = true;
+	document.body.removeEventListener("paste", pasteEvent);
 	document.getElementById("dial").disabled = false;
 	document.getElementById("magiccode").readOnly = false;
 	document.getElementById("magiccode").value = "";
 	codechange();
-	document.getElementById("filepicker").disabled = true;
-	document.body.removeEventListener("paste", paste);
+	updateqr("");
 
 	location.hash = "";
 
@@ -507,7 +512,7 @@ function hashchange() {
 
 function codechange() {
 	if (document.getElementById("magiccode").value === "") {
-		document.getElementById("dial").value = "NEW WORMHOLE";
+		document.getElementById("dial").value = "CREATE WORMHOLE";
 	} else {
 		document.getElementById("dial").value = "JOIN WORMHOLE";
 	}
@@ -521,7 +526,7 @@ function autocompletehint() {
 }
 
 function autocomplete(e) {
-	// TODO repeated tabs cycle through all matches?
+	// TODO more stateful autocomplete, i.e. repeated tabs cycle through matches.
 	if (e.keyCode === 9) {
 		e.preventDefault(); // Prevent tabs from doing tab things.
 		const words = document.getElementById("magiccode").value.split("-");
@@ -565,7 +570,7 @@ function browserhacks() {
 	}
 
 	// Safari cannot save files from service workers.
-	if (window.safari || /iPad|iPhone|iPod/.test(navigator.userAgent)) {
+	if (/Safari/.test(navigator.userAgent) && !(/Chrome/.test(navigator.userAgent) || /Chromium/.test(navigator.userAgent))) {
 		hacks.nosw = true;
 		console.log("quirks: serviceworkers disabled on safari");
 	}
@@ -596,12 +601,18 @@ function browserhacks() {
 		![320, 375, 414, 768, 1024].includes(window.innerWidth)
 	) {
 		hacks.noautoconnect = true;
-		console.log("quirks: detected preview, ");
+		console.log("quirks: detected ios page preview");
 	}
 
 	// Detect for features we need for this to work.
 	if (!window.WebSocket || !window.RTCPeerConnection || !window.WebAssembly) {
 		hacks.browserunsupported = true;
+	}
+
+	// Firefox does not support clipboard.read.
+	if (!navigator.clipboard || !navigator.clipboard.read) {
+		hacks.noclipboardapi = true;
+		console.log("quirks: clipboard api not supported");
 	}
 
 	// Are we in an extension?
@@ -629,13 +640,15 @@ async function domready() {
 
 async function swready() {
 	if (!hacks.nosw) {
-		const registration = await navigator.serviceWorker.register(
-			"sw.js",
-			{scope: "/_/"},
-		);
-		// TODO handle updates to service workers.
-		serviceworker =
-			registration.active || registration.waiting || registration.installing;
+		// Remove old /_/ scoped service worker.
+		const regs = await navigator.serviceWorker.getRegistrations();
+		for (let i = 0; i < regs.length; i++) {
+			if (regs[i].scope.endsWith("/_/")) {
+				regs[i].unregister();
+			}
+		}
+		const reg = await navigator.serviceWorker.register("sw.js", {scope: "/"});
+		serviceworker = reg.active || reg.waiting || reg.installing;
 		console.log("service worker registered:", serviceworker.state);
 	}
 }
@@ -672,8 +685,9 @@ async function wasmready() {
 	document.getElementById("magiccode").addEventListener("keydown", autocomplete);
 	document.getElementById("magiccode").addEventListener("input", autocompletehint);
 	document.getElementById("filepicker").addEventListener("change", pick);
-	document.getElementById("dialog").addEventListener("submit", preventdefault);
-	document.getElementById("dialog").addEventListener("submit", connect);
+	document.getElementById("clipboard").addEventListener("click", pasteClipboard);
+	document.getElementById("main").addEventListener("submit", preventdefault);
+	document.getElementById("main").addEventListener("submit", connect);
 	document.getElementById("qr").addEventListener("dblclick", copyurl);
 	document.body.addEventListener("drop", preventdefault);
 	document.body.addEventListener("dragenter", preventdefault);

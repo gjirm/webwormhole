@@ -79,7 +79,19 @@ const (
 	// connection because the key it derived is bad.
 	CloseBadKey
 
-	// TODO move these out of this package.
+	// CloseWebRTCSuccess indicates a WebRTC connection was successful.
+	CloseWebRTCSuccess
+
+	// CloseWebRTCSuccessDirect indicates a WebRTC connection was successful and we
+	// know it's peer-to-peer.
+	CloseWebRTCSuccessDirect
+
+	// CloseWebRTCSuccessRelay indicates a WebRTC connection was successful and we
+	// know it's going via a relay.
+	CloseWebRTCSuccessRelay
+
+	// CloseWebRTCFailed we couldn't establish a WebRTC connection.
+	CloseWebRTCFailed
 )
 
 var (
@@ -457,13 +469,21 @@ func New(pass string, sigserv string, slotc chan string) (*Wormhole, error) {
 
 	go c.handleRemoteCandidates(ws, &key)
 
-	// TODO put a timeout here.
 	select {
 	case <-c.opened:
-		logf("webrtc connection succeeded, closing signalling channel")
+		relay := c.IsRelay()
+		logf("webrtc connection succeeded (relay: %v) closing signalling channel", relay)
+		if relay {
+			ws.Close(CloseWebRTCSuccessRelay, "")
+		} else {
+			ws.Close(CloseWebRTCSuccessDirect, "")
+		}
 	case err = <-c.err:
+		ws.Close(CloseWebRTCFailed, "")
+	case <-time.After(30 * time.Second):
+		err = ErrTimedOut
+		ws.Close(CloseWebRTCFailed, "timed out")
 	}
-	ws.Close(websocket.StatusNormalClosure, "done")
 	return c, err
 }
 
@@ -599,13 +619,20 @@ func Join(slot, pass string, sigserv string) (*Wormhole, error) {
 
 	go c.handleRemoteCandidates(ws, &key)
 
-	// TODO put a timeout here.
 	select {
 	case <-c.opened:
-		logf("webrtc connection succeeded, closing signalling channel")
+		relay := c.IsRelay()
+		logf("webrtc connection succeeded (relay: %v) closing signalling channel", relay)
+		if relay {
+			ws.Close(CloseWebRTCSuccessRelay, "")
+		} else {
+			ws.Close(CloseWebRTCSuccessDirect, "")
+		}
 	case err = <-c.err:
+		ws.Close(CloseWebRTCFailed, "")
+	case <-time.After(30 * time.Second):
+		err = ErrTimedOut
+		ws.Close(CloseWebRTCFailed, "timed out")
 	}
-
-	ws.Close(websocket.StatusNormalClosure, "done")
 	return c, err
 }

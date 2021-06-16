@@ -1,7 +1,7 @@
 {
 	"manifest_version": 2,
 	"name": "WebWormhole",
-	"version": "0.5",
+	"version": "0.7",
 	"description": "WebWormhole lets you send files from one place to another.",
 	"icons": {
 		"16": "hole16.png",
@@ -24,8 +24,7 @@
 		"wasm_exec.js",
 		"sw.js",
 		"icon.svg",
-		"stars.svg",
-		"wormhole.svg"
+		"space.svg"
 	],
 	"content_security_policy": "default-src 'self'; script-src 'self' 'wasm-eval'; img-src 'self' blob:; connect-src wss://webwormhole.io"
 }

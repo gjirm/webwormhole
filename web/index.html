@@ -1,28 +1,37 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<meta charset=utf-8>
-<meta name="description" content="SEND FILES FROM ONE PLACE TO ANOTHER">
-<meta name="go-import" content="webwormhole.io git https://github.com/saljam/webwormhole">
-<meta name="viewport" content="width=device-width, height=device-height">
-<link rel="icon" href="icon.svg">
-<link rel="stylesheet" href="style.css">
+<meta charset="utf-8" />
+<meta name="description" content="Send files from one place to another." />
+<meta name="go-import" content="webwormhole.io git https://github.com/saljam/webwormhole" />
+<meta name="viewport" content="width=device-width, height=device-height" />
+<link rel="icon" href="icon.svg" />
+<link rel="manifest" href="/pwa.json">
+<link rel="stylesheet" href="style.css" />
 <script src="wasm_exec.js"></script>
 <script src="webwormhole.js"></script>
 <script src="main.js"></script>
-<title>WEBWORMHOLE</title>
+<title>WebWormhole</title>
 <body>
-<form id="dialog" role="main">
-<div>
-<label id="filepicker-wrap" class="button">OPEN<input type="file" id="filepicker" disabled></label>
-<p id="info">WEB WORMHOLE LETS YOU SEND FILES FROM ONE PLACE TO ANOTHER</p></div>
+<form id="main" role="main">
+<p id="info">WebWormhole lets you send files from one computer to another.</p>
+<div id="top">
+Drag and drop, <label id="filepicker-wrap" class="button">OPEN<input type="file" id="filepicker" disabled /></label>, or <input type="button" id="clipboard" class="button" value="PASTE" disabled /> files and text to send.
+</div>
 <ul id="transfers"></ul>
-<input type="submit" id="dial" class="button" value="LOADING..." disabled>
-<input type="text" id="magiccode" autocomplete="off" autofocus title="WORMHOLE CODE" placeholder="GOT A CODE? TYPE HERE">
-<img id="qr">
+<div id="prompt">
+<p>Type a wormhole's phrase to join it, or leave empty to create a new one.</p>
+<img id="qr" />
+<input type="text" id="magiccode" autocomplete="off" autofocus title="wormhole phrase" placeholder="wormhole phrase" />
+<input type="submit" id="dial" class="button" value="LOADING..." disabled />
 <span id="autocomplete"></span>
+</div>
+<div id="footer">
+<ul>
+<li>source: <a href="https://github.com/saljam/webwormhole">github.com/saljam/webwormhole</a></li>
+<li>feedback: <a href="mailto:s@lj.am">s@lj.am</a> <a href="https://twitter.com/_saljam">@_saljam</a></li>
+<li>install: <a href="https://addons.mozilla.org/firefox/addon/webwormhole/">firefox</a> <a href="https://chrome.google.com/webstore/detail/webwormhole/jhombkhjanncdalcbcahinpjoacaiidn">chrome</a> <a href="https://pkg.go.dev/webwormhole.io/cmd/ww">command line</a></li>
+</ul>
+</div>
 </form>
-<footer>
-<span>source: <a href="https://github.com/saljam/webwormhole">github.com/saljam/webwormhole</a></span>
-<span>feedback: <a href="mailto:s@lj.am">s@lj.am</a> <a href="https://twitter.com/_saljam">@_saljam</a></span>
-<span>install: <a href="https://addons.mozilla.org/firefox/addon/webwormhole/">firefox</a> <a href="https://chrome.google.com/webstore/detail/webwormhole/jhombkhjanncdalcbcahinpjoacaiidn">chrome</a> <a href="https://pkg.go.dev/webwormhole.io/cmd/ww">command line</a></span>
-</footer>
+</body>
+</html>
