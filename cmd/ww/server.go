@@ -377,9 +377,10 @@ func server(args ...string) {
 		// https://bugs.webkit.org/show_bug.cgi?id=201591
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-eval'; img-src 'self' blob:; connect-src 'self' ws://localhost/ wss://tip.webwormhole.io/ wss://webwormhole.io/ wss://ww.safetica.cloud/ wss://w.safetica.cloud/")
 
-		// Set HSTS header
-		// https://ssl-config.mozilla.org/#server=go&config=intermediate
-		w.Header().Set("Strict-Transport-Security", "max-age=63072000")
+		// Set HSTS header for 2 years
+		if r.URL.Scheme == "https" {
+			w.Header().Set("Strict-Transport-Security", "max-age=63072000")
+		}
 
 		// Set a small max age for cache. We might want to switch to a content-addressed
 		// resource naming scheme and change this to immutable, but until then disable caching.
