@@ -35,7 +35,8 @@ if ($Args[0] -eq "build") {
     
 } elseif ($args[0] -eq "tag") {
     Write-Host "Creating new tag: $tag"
-    git tag -a $tag
+    $version = Read-Host "Enter version (vX.X.X)"
+    git tag -a $version -m "$tag"
     git push --tags gjirm jirm-main
 
 } else {
