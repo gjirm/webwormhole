@@ -46,7 +46,7 @@ changelog:
 release:
   github:
     owner: gjirm
-    repo: webwormhole
+    name: webwormhole
 
 # dockers:
 #   - dockerfile: Dockerfile
