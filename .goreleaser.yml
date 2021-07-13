@@ -43,6 +43,11 @@ changelog:
       - '^docs:'
       - '^test:'
 
+release:
+  github:
+    owner: gjirm
+    repo: webwormhole
+
 # dockers:
 #   - dockerfile: Dockerfile
 #     goos: linux
