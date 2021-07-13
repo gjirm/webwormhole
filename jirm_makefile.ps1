@@ -28,6 +28,16 @@ if ($Args[0] -eq "build") {
     
 } elseif ($args[0] -eq "run") {
     Write-Host "Run"
+
+} elseif ($args[0] -eq "push") {
+        Write-Host "Pushing jirm-main"
+        git push gjirm jirm-main
+    
+} elseif ($args[0] -eq "tag") {
+    Write-Host "Creating new tag: $tag"
+    git tag -a $tag
+    git push --tags gjirm jirm-main
+
 } else {
     Write-Host "None!"
 }

@@ -1,2 +1,3 @@
 /web/webwormhole.wasm
 /web/wasm_exec.js
+dist/

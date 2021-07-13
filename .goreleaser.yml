@@ -1,0 +1,60 @@
+# This is an example .goreleaser.yml file with some sane defaults.
+# Make sure to check the documentation at http://goreleaser.com
+project_name: ww
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go generate ./...
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+    goarch:
+      - amd64
+    # flags:
+    #   - -trimpath
+    main: ./cmd/ww
+    binary: ww
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - templates/**/*
+      - config_example.yml
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+# dockers:
+#   - dockerfile: Dockerfile
+#     goos: linux
+#     goarch: amd64
+#     use_buildx: true
+#     image_templates:
+#       - "jirm/{{ .ProjectName }}:latest"
+#       - "jirm/{{ .ProjectName }}:{{ .Tag }}"
+#     build_flag_templates:
+#       - "--platform=linux/amd64"
+#     extra_files:
+#       - templates
+#     #skip_push: true
