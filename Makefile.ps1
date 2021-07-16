@@ -30,14 +30,21 @@ if ($Args[0] -eq "build") {
     Write-Host "Run"
 
 } elseif ($args[0] -eq "push") {
-        Write-Host "Pushing jirm-main"
+        Write-Host "--> Pushing jirm-main" -ForegroundColor Green
         git push gjirm jirm-main
     
 } elseif ($args[0] -eq "tag") {
-    Write-Host "Creating new tag: $tag"
+    Write-Host "--> Creating new tag: $tag"  -ForegroundColor Green
     $version = Read-Host "Enter version (vX.X.X)"
     git tag -a $version -m "$tag"
     git push --tags gjirm jirm-main
+
+} elseif ($args[0] -eq "release") {
+    Write-Host "--> Releasing"  -ForegroundColor Green
+    $mPwd = Read-Host "Enter minisign key password"
+    $mPwd | Set-Content .\pwd -NoNewline
+    goreleaser release --rm-dist
+    Remove-Item .\pwd
 
 } else {
     Write-Host "None!"

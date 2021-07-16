@@ -1,6 +1,6 @@
 # This is an example .goreleaser.yml file with some sane defaults.
 # Make sure to check the documentation at http://goreleaser.com
-project_name: ww
+project_name: webwormhole
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -47,6 +47,17 @@ release:
   github:
     owner: gjirm
     name: webwormhole
+
+signs:
+  - id: minisign archive
+    artifacts: archive
+    signature: "${artifact}.minisig"
+    cmd: minisign
+    stdin_file: "pwd"
+    args: [-x, "${signature}", -Sm, "${artifact}", -s, "W:\\keys\\jirm-minisign-2020.key", -t, "\"{{ .ProjectName }} {{ .Tag }} {{.Commit}} {{.Date}}\""]
+    ids:
+      - default 
+
 
 # dockers:
 #   - dockerfile: Dockerfile
