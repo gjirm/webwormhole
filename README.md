@@ -1,3 +1,19 @@
+----------------------
+Added by gjirm
+----------------------
+
+Releases are signed by key:
+
+	RWRN2/G3Qiz5ddELm0jk7hLVuCEzodFiDKZBQT3eJ2u/LsbNgNo5guh8
+
+Verify by:
+
+	minisign -Vm {archive} -P RWRN2/G3Qiz5ddELm0jk7hLVuCEzodFiDKZBQT3eJ2u/LsbNgNo5guh8
+
+---------------------
+Original readme:
+---------------------
+
 THIS PROJECT IS STILL IN EARLY DEVELOPMENT IT USES EXPERIMENTAL
 CRYPTOGRAPHIC LIBRARIES AND IT HAS NOT HAD ANY KIND OF SECURITY
 OR CRYPTOGRAPHY REVIEW THIS SOFTWARE MIGHT BE BROKEN AND UNSAFE
