@@ -41,7 +41,15 @@ if ($Args[0] -eq "build") {
 
 } elseif ($args[0] -eq "release") {
     Write-Host "--> Releasing"  -ForegroundColor Green
-    $mPwd = Read-Host "Enter minisign key password"
+    $mPwd = $(Read-Host -AsSecureString "Enter minisign key password" | ConvertFrom-SecureString -AsPlainText)
+    Write-Host "--> Testing minisign key password" -ForegroundColor Green
+    $mPwd | minisign -Sm .\.gitignore -s $minisignKey
+    if ($lastExitCode -ne "0") {
+        Write-Host "--X Minisign key password not match!" -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "--> Password is OK" -ForegroundColor Green
+    Remove-Item .\.gitignore.minisig
     $mPwd | Set-Content .\pwd -NoNewline
     goreleaser release --rm-dist
     Remove-Item .\pwd
