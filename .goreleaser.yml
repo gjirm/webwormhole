@@ -21,6 +21,7 @@ builds:
     binary: ww
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
@@ -31,7 +32,8 @@ archives:
       - LICENSE
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+  algorithm: sha256
 
 snapshot:
   name_template: "{{ .Tag }}-next"
@@ -49,15 +51,11 @@ release:
     name: webwormhole
 
 signs:
-  - id: minisign archive
-    artifacts: archive
+    artifacts: checksum
     signature: "${artifact}.minisig"
     cmd: minisign
     stdin_file: "pwd"
-    args: [-x, "${signature}", -Sm, "${artifact}", -s, "W:\\keys\\jirm-minisign-2020.key", -t, "\"{{ .ProjectName }} {{ .Tag }} {{.Commit}} {{.Date}}\""]
-    ids:
-      - default 
-
+    args: [-x, "${signature}", -Sm, "${artifact}", -s, "W:\\keys\\jirm-minisign-2020.key", -t, "\"{{ .ProjectName }} {{ .Version }} {{.Commit}} {{.Date}}\""]
 
 # dockers:
 #   - dockerfile: Dockerfile
