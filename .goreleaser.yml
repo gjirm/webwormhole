@@ -21,7 +21,7 @@ builds:
     binary: ww
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-      
+
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
@@ -51,7 +51,7 @@ release:
     name: webwormhole
 
 signs:
-    artifacts: checksum
+  - artifacts: checksum
     signature: "${artifact}.minisig"
     cmd: minisign
     stdin_file: "pwd"
