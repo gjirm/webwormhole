@@ -402,7 +402,7 @@ class Wormhole {
 				return
 			}
 			case WormholeErrorCodes.closeWrongProto: {
-				this.fail(""wrong protocol version: must update"");
+				this.fail("wrong protocol version: must update");
 				return
 			}
 			default: {
