@@ -11,6 +11,9 @@ declare var webwormhole: {
 	open(key: Uint8Array, msg: string): string;
 	seal(key: Uint8Array, msg: string): string;
 	fingerprint(key: Uint8Array): Uint8Array;
+
+	match(prefix: string): string;
+	qrencode(url: string): Uint8Array;
 };
 
 // Declare Go WASM loader symbols.
@@ -18,10 +21,6 @@ declare class Go {
 	importObject: WebAssembly.Imports;
 	run(instance: WebAssembly.Instance): void;
 }
-
-// The ICEServers JSON as exported from Pion capitalises field names, but
-// JS expects lowercase dictionary entries.
-type GoICEServers = [{ URLs: string[]; Username: string; Credential: string }];
 
 // Error codes from webwormhole/dial.go.
 enum WormholeErrorCodes {
@@ -90,7 +89,7 @@ class Wormhole {
 	}
 
 	async statePlayer1(data: string): Promise<State> {
-		const msg: { slot: string; iceServers: GoICEServers } = JSON.parse(data);
+		const msg: { slot: string; iceServers: RTCIceServer[] } = JSON.parse(data);
 
 		console.log("assigned slot:", msg.slot);
 		this.slot = parseInt(msg.slot, 10);
@@ -107,7 +106,7 @@ class Wormhole {
 			return this.fail("panic");
 		}
 
-		const msg: { iceServers: GoICEServers } = JSON.parse(data);
+		const msg: { iceServers: RTCIceServer[] } = JSON.parse(data);
 
 		this.pc = this.makePeerConnection(msg.iceServers);
 		this.callback(this.pc);
@@ -289,18 +288,8 @@ class Wormhole {
 		return;
 	}
 
-	makePeerConnection(iceServers: GoICEServers): RTCPeerConnection {
-		let normalisedICEServers = [];
-		for (let i = 0; i < iceServers.length; i++) {
-			normalisedICEServers.push({
-				urls: iceServers[i].URLs,
-				username: iceServers[i].Username,
-				credential: iceServers[i].Credential,
-			});
-		}
-		const pc = new RTCPeerConnection({
-			iceServers: normalisedICEServers,
-		});
+	makePeerConnection(iceServers: RTCIceServer[]): RTCPeerConnection {
+		const pc = new RTCPeerConnection({ iceServers: iceServers });
 		pc.onicecandidate = (e: RTCPeerConnectionIceEvent) => {
 			if (!this.ws || !this.key || !this.pc) {
 				return;
@@ -387,27 +376,27 @@ class Wormhole {
 			case 1000:
 			case 1001: {
 				// Normal closure of WebSocket.
-				return
+				return;
 			}
 			case WormholeErrorCodes.closeNoSuchSlot: {
 				this.fail("no such slot");
-				return
+				return;
 			}
 			case WormholeErrorCodes.closeSlotTimedOut: {
 				this.fail("timed out");
-				return
+				return;
 			}
 			case WormholeErrorCodes.closeNoMoreSlots: {
 				this.fail("could not get slot");
-				return
+				return;
 			}
 			case WormholeErrorCodes.closeWrongProto: {
 				this.fail("wrong protocol version: must update");
-				return
+				return;
 			}
 			default: {
 				this.fail(`websocket session closed: ${e.reason} (${e.code})`);
-				return
+				return;
 			}
 		}
 	}
