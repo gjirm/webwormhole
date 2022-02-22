@@ -1,0 +1,56 @@
+# fly.toml file generated for jirm-webwormhole on 2022-02-22T12:48:28+01:00
+
+app = "jirm-webwormhole"
+
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[env]
+  WW_HOSTS = "w.jirm.cz"
+  WW_TURN = "turn:52.138.169.226:3478"
+  WW_STUN = "stun:stun.l.google.com:19302"
+
+[mount]
+  source = "jirm_webwormhole_acme"
+  destination = "/root/keys"
+
+[experimental]
+  allowed_public_ports = []
+  auto_rollback = true
+
+[[services]]
+  internal_port = 80
+  protocol = "tcp"
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    port = "80"
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"
+
+[[services]]
+  internal_port = 443
+  protocol = "tcp"
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+    type = "connections"
+
+  [[services.ports]]
+    port = "443"
+
+  [[services.tcp_checks]]
+    grace_period = "1s"
+    interval = "15s"
+    restart_limit = 0
+    timeout = "2s"

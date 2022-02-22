@@ -16,4 +16,4 @@ RUN apk --no-cache add ca-certificates
 COPY --from=gobuild /src/ww /bin
 COPY --from=gobuild /src/web /web
 WORKDIR /
-CMD ["sh", "-c", "/bin/ww server -http=0.0.0.0:80 -https=0.0.0.0:443 -hosts=$WW_HOSTS -turn=$WW_TURN -turn-secret=$WW_TURN_PWD -stun=$WW_STUN"]
+ENTRYPOINT ["/bin/ww", "server"]
