@@ -10,7 +10,7 @@ if ($Args[0] -eq "build") {
 
     if ($Args[1] -eq "docker") {
         Write-Host "--> Building $($imageName)" -ForegroundColor Green
-        docker build --tag $imageName --tag $imageLatest .
+        docker build -f Dockerfile_original --tag $imageName --tag $imageLatest .
         If ($lastExitCode -eq "0") {
             Write-Host "--> $($imageName) successfully build!" -ForegroundColor Green
         } else {
