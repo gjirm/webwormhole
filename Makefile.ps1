@@ -51,7 +51,7 @@ if ($Args[0] -eq "build") {
     Write-Host "--> Password is OK" -ForegroundColor Green
     Remove-Item .\.gitignore.minisig
     $mPwd | Set-Content .\pwd -NoNewline
-    goreleaser release --rm-dist
+    goreleaser release --clean
     Remove-Item .\pwd
 
 } else {
