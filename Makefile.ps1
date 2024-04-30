@@ -1,8 +1,8 @@
 $dt = Get-Date -Format "yyy-MM-dd_HHMMss"
 $headhash = git rev-parse --short HEAD
 $tag = "$($dt)-$($headhash)"
-$imageName = "jirm/ww:$($tag)"
-$imageLatest = "jirm/ww:latest"
+$imageName = "ghcr.io/gjirm/ww:$($tag)"
+$imageLatest = "ghcr.io/gjirm/ww:latest"
 
 $minisignKey = "W:\keys\jirm-minisign-2020.key"
 
